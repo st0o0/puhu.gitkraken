@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Allow the floating Puhu.Plugin version until it is pinned post-publish -->
+    <CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Set the version once Puhu.Plugin is published on NuGet -->
+    <PackageVersion Include="Puhu.Plugin" Version="*" />
+  </ItemGroup>
+
+  <ItemGroup Label="Test Dependencies">
+    <PackageVersion Include="xunit.v3.mtp-v2" Version="3.2.2" />
+    <!-- Hosts the plugin page in a real Termina app for end-to-end key/render tests. -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.8" />
+  </ItemGroup>
+</Project>
