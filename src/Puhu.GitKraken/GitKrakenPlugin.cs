@@ -22,23 +22,41 @@ public sealed class GitKrakenPlugin : IPuhuPlugin
                 services.AddSingleton<GraphRenderer>();
                 services.AddSingleton(new GitRepoSettings(repoPath));
                 services.AddSingleton<GitCliService>();
+                services.AddSingleton<CommandRegistry>();
             })
             .WithActors((system, registry, resolver) =>
             {
                 var cli = resolver.GetService<GitCliService>();
-                var actor = system.ActorOf(
+
+                var repoActor = system.ActorOf(
                     Props.Create(() => new GitRepoActor(cli)),
-                    "gitkraken");
-                registry.Register<GitRepoActor>(actor);
+                    "gitkraken-repo");
+                registry.Register<GitRepoActor>(repoActor);
+
+                var stagingActor = system.ActorOf(
+                    Props.Create(() => new GitStagingActor(cli)),
+                    "gitkraken-staging");
+                registry.Register<GitStagingActor>(stagingActor);
+
+                var writeActor = system.ActorOf(
+                    Props.Create(() => new GitWriteActor(cli)),
+                    "gitkraken-write");
+                registry.Register<GitWriteActor>(writeActor);
+
+                var remoteActor = system.ActorOf(
+                    Props.Create(() => new GitRemoteActor(cli)),
+                    "gitkraken-remote");
+                registry.Register<GitRemoteActor>(remoteActor);
 
                 var tickRouter = registry.Get<TickRouterKey>();
                 tickRouter.Tell(new RegisterMonitor(
-                    "gitkraken", actor, false, TimeSpan.FromSeconds(30)));
+                    "gitkraken-repo", repoActor, false, TimeSpan.FromSeconds(30)));
             })
             .WithRoutes(termina =>
             {
-                termina.RegisterRoute<GraphPage, GraphViewModel>("/git");
+                termina.RegisterRoute<GitMainPage, GitMainViewModel>("/git");
                 termina.RegisterRoute<CommitDetailPage, CommitDetailViewModel>("/git/commit/{hash}");
+                termina.RegisterRoute<CommandPalettePage, CommandPaletteViewModel>("/git/palette");
             });
     }
 }
