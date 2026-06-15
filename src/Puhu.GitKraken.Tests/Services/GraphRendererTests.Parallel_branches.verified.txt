@@ -1,0 +1,6 @@
+﻿● Latest on main
+● Merge feature-a
+│ ● Work on feature-a
+● │ Merge feature-b
+│ │ ● Work on feature-b
+● │ │ Root

@@ -1,0 +1,4 @@
+﻿● Merge branch 'feature'
+● │ Main work
+│ ● Feature work
+● │ Common ancestor
