@@ -1,57 +1,88 @@
-using LibGit2Sharp;
+using System.Diagnostics;
 
 namespace Puhu.GitKraken.Tests.Helpers;
 
 internal sealed class TestRepoBuilder : IDisposable
 {
     private readonly string _path;
-    public Repository Repo { get; }
 
     public TestRepoBuilder()
     {
         _path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "puhu-test-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(_path);
-        Repository.Init(_path);
-        Repo = new Repository(_path);
+        Git("init");
+        Git("config user.email \"test@example.com\"");
+        Git("config user.name \"Test Author\"");
     }
 
     public string Path => _path;
 
-    public Commit AddCommit(string message, string fileName = "file.txt", string content = "content")
+    public string AddCommit(string message, string fileName = "file.txt", string content = "content")
     {
         var filePath = System.IO.Path.Combine(_path, fileName);
+        var dir = System.IO.Path.GetDirectoryName(filePath);
+        if (dir is not null && !Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
+
         File.WriteAllText(filePath, content + "\n" + Guid.NewGuid());
-        Commands.Stage(Repo, fileName);
-
-        var author = new Signature("Test Author", "test@example.com", DateTimeOffset.UtcNow);
-        return Repo.Commit(message, author, author);
+        Git($"add \"{fileName}\"");
+        Git($"commit -m \"{message}\"");
+        return Git("rev-parse HEAD").Trim();
     }
 
-    public Branch CreateBranch(string name) => Repo.CreateBranch(name);
+    public void CreateBranch(string name) => Git($"branch \"{name}\"");
 
-    public void Checkout(string branchName)
+    public void Checkout(string branchName) => Git($"checkout \"{branchName}\"");
+
+    public string MergeBranch(string branchName, string message)
     {
-        var branch = Repo.Branches[branchName];
-        Commands.Checkout(Repo, branch);
+        Git($"merge \"{branchName}\" --no-edit -m \"{message}\"");
+        return Git("rev-parse HEAD").Trim();
     }
 
-    public Commit MergeBranch(string branchName, string message)
+    public void WriteFile(string fileName, string content)
     {
-        var branch = Repo.Branches[branchName];
-        var mergeResult = Repo.Merge(branch, Repo.Config.BuildSignature(DateTimeOffset.UtcNow));
+        var filePath = System.IO.Path.Combine(_path, fileName);
+        var dir = System.IO.Path.GetDirectoryName(filePath);
+        if (dir is not null && !Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
 
-        if (mergeResult.Status == MergeStatus.UpToDate || mergeResult.Status == MergeStatus.FastForward)
+        File.WriteAllText(filePath, content);
+    }
+
+    public string Git(string args)
+    {
+        var psi = new ProcessStartInfo("git", args)
         {
-            return mergeResult.Commit;
-        }
+            WorkingDirectory = _path,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            Environment = { ["LC_ALL"] = "C" },
+        };
 
-        return mergeResult.Commit;
+        using var process = Process.Start(psi)!;
+        var stdout = process.StandardOutput.ReadToEnd();
+        var stderr = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException($"git {args} failed (exit {process.ExitCode}): {stderr}");
+
+        return stdout;
     }
 
     public void Dispose()
     {
-        Repo.Dispose();
-        try { Directory.Delete(_path, true); }
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(_path, "*", SearchOption.AllDirectories))
+            {
+                File.SetAttributes(file, FileAttributes.Normal);
+            }
+            Directory.Delete(_path, true);
+        }
         catch { /* best effort cleanup */ }
     }
 }
