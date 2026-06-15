@@ -21,12 +21,13 @@ public sealed class GitKrakenPlugin : IPuhuPlugin
             {
                 services.AddSingleton<GraphRenderer>();
                 services.AddSingleton(new GitRepoSettings(repoPath));
+                services.AddSingleton<GitCliService>();
             })
             .WithActors((system, registry, resolver) =>
             {
-                var settings = resolver.GetService<GitRepoSettings>();
+                var cli = resolver.GetService<GitCliService>();
                 var actor = system.ActorOf(
-                    Props.Create(() => new GitRepoActor(settings.RepoPath)),
+                    Props.Create(() => new GitRepoActor(cli)),
                     "gitkraken");
                 registry.Register<GitRepoActor>(actor);
 

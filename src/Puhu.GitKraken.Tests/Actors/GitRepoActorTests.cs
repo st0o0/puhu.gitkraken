@@ -2,6 +2,7 @@ using Akka.Actor;
 using Akka.Hosting;
 using Akka.Hosting.TestKit;
 using Puhu.GitKraken.Actors;
+using Puhu.GitKraken.Services;
 using Puhu.GitKraken.Tests.Helpers;
 
 namespace Puhu.GitKraken.Tests.Actors;
@@ -20,7 +21,8 @@ public sealed class GitRepoActorTests : TestKit
         _repo.AddCommit("Initial commit");
         _repo.AddCommit("Second commit");
 
-        var actor = Sys.ActorOf(Props.Create(() => new GitRepoActor(_repo.Path)));
+        var cli = new GitCliService(new GitRepoSettings(_repo.Path));
+        var actor = Sys.ActorOf(Props.Create(() => new GitRepoActor(cli)));
         actor.Tell(new RefreshRequest());
 
         var response = await AwaitAndAsk<GraphResponse>(actor, new GetGraph());
@@ -33,7 +35,8 @@ public sealed class GitRepoActorTests : TestKit
     [Fact]
     public async Task GetGraph_with_no_prior_refresh_returns_empty()
     {
-        var actor = Sys.ActorOf(Props.Create(() => new GitRepoActor(_repo.Path)));
+        var cli = new GitCliService(new GitRepoSettings(_repo.Path));
+        var actor = Sys.ActorOf(Props.Create(() => new GitRepoActor(cli)));
 
         var response = await actor.Ask<GraphResponse>(
             new GetGraph(), TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
@@ -47,7 +50,8 @@ public sealed class GitRepoActorTests : TestKit
         _repo.AddCommit("Initial", "file.txt", "line1");
         _repo.AddCommit("Change file", "file.txt", "line1\nline2");
 
-        var actor = Sys.ActorOf(Props.Create(() => new GitRepoActor(_repo.Path)));
+        var cli = new GitCliService(new GitRepoSettings(_repo.Path));
+        var actor = Sys.ActorOf(Props.Create(() => new GitRepoActor(cli)));
         actor.Tell(new RefreshRequest());
 
         var graph = await AwaitAndAsk<GraphResponse>(actor, new GetGraph());
@@ -63,7 +67,8 @@ public sealed class GitRepoActorTests : TestKit
     [Fact]
     public async Task RepoNotFound_when_path_invalid()
     {
-        var actor = Sys.ActorOf(Props.Create(() => new GitRepoActor(@"C:\nonexistent\repo")));
+        var cli = new GitCliService(new GitRepoSettings(@"C:\nonexistent\repo"));
+        var actor = Sys.ActorOf(Props.Create(() => new GitRepoActor(cli)));
         actor.Tell(new RefreshRequest());
 
         var response = await AwaitAndAsk<RepoNotFound>(actor, new GetGraph());
@@ -73,8 +78,7 @@ public sealed class GitRepoActorTests : TestKit
 
     private async Task<T> AwaitAndAsk<T>(IActorRef actor, object message)
     {
-        // Give the actor time to process the prior Tell
-        await Task.Delay(200, TestContext.Current.CancellationToken);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
         return await actor.Ask<T>(message, TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     }
 

@@ -26,7 +26,14 @@ public sealed class GitCliService(GitRepoSettings settings)
         };
 
         using var process = new Process { StartInfo = psi };
-        process.Start();
+        try
+        {
+            process.Start();
+        }
+        catch (Exception ex)
+        {
+            return new GitResult(-1, "", ex.Message);
+        }
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(timeout ?? DefaultTimeout);

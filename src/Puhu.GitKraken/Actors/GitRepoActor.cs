@@ -1,25 +1,21 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Text.RegularExpressions;
 using Akka.Actor;
-using LibGit2Sharp;
-using Puhu.GitKraken.Models;
+using Puhu.GitKraken.Services;
 using Puhu.Plugin;
-using ChangeKind = Puhu.GitKraken.Models.ChangeKind;
-using LibChangeKind = LibGit2Sharp.ChangeKind;
 
 namespace Puhu.GitKraken.Actors;
 
-public sealed partial class GitRepoActor : ReceiveActor
+public sealed class GitRepoActor : ReceiveActor
 {
-    private readonly string _repoPath;
-    private List<GraphCommit> _cachedGraph = [];
+    private readonly GitCliService _cli;
+    private IReadOnlyList<Models.GraphCommit> _cachedGraph = [];
     private string? _currentBranch;
     private string? _lastHeadSha;
-    private bool _repoValid;
 
-    public GitRepoActor(string repoPath)
+    private const string LogFormat = "%H%x00%h%x00%s%x00%aN%x00%aI%x00%P%x00%D";
+
+    public GitRepoActor(GitCliService cli)
     {
-        _repoPath = repoPath;
+        _cli = cli;
 
         Receive<Tick>(_ => HandleTick());
         Receive<RefreshRequest>(_ => Reload());
@@ -29,106 +25,45 @@ public sealed partial class GitRepoActor : ReceiveActor
 
     private void HandleTick()
     {
-        if (!_repoValid && !Repository.IsValid(_repoPath))
-        {
+        var headResult = _cli.RunAsync("rev-parse HEAD").GetAwaiter().GetResult();
+        if (!headResult.Success)
             return;
-        }
 
-        try
-        {
-            using var repo = new Repository(_repoPath);
-            var headSha = repo.Head?.Tip?.Sha;
-            if (headSha == _lastHeadSha)
-            {
-                return;
-            }
-        }
-        catch
-        {
+        var headSha = headResult.Stdout.Trim();
+        if (headSha == _lastHeadSha)
             return;
-        }
 
         Reload();
     }
 
     private void Reload()
     {
-        if (!TryOpenRepo(out var repo))
+        var logResult = _cli.RunAsync($"log --format=\"{LogFormat}\" -200").GetAwaiter().GetResult();
+        if (!logResult.Success)
         {
-            _repoValid = false;
             _cachedGraph = [];
             _currentBranch = null;
             _lastHeadSha = null;
             return;
         }
 
-        using (repo)
-        {
-            _repoValid = true;
-            _currentBranch = repo.Head?.FriendlyName;
-            _lastHeadSha = repo.Head?.Tip?.Sha;
+        _cachedGraph = GitLogParser.Parse(logResult.Stdout);
 
-            var branchTips = new Dictionary<string, List<string>>();
-            foreach (var branch in repo.Branches)
-            {
-                if (branch.Tip is null)
-                {
-                    continue;
-                }
+        var branchResult = _cli.RunAsync("rev-parse --abbrev-ref HEAD").GetAwaiter().GetResult();
+        _currentBranch = branchResult.Success ? branchResult.Stdout.Trim() : null;
 
-                if (!branchTips.TryGetValue(branch.Tip.Sha, out var labels))
-                {
-                    labels = [];
-                    branchTips[branch.Tip.Sha] = labels;
-                }
-                labels.Add(branch.FriendlyName);
-            }
-
-            var tagTips = new Dictionary<string, List<string>>();
-            foreach (var tag in repo.Tags)
-            {
-                var target = tag.PeeledTarget as Commit ?? tag.Target as Commit;
-                if (target is null)
-                {
-                    continue;
-                }
-
-                if (!tagTips.TryGetValue(target.Sha, out var labels))
-                {
-                    labels = [];
-                    tagTips[target.Sha] = labels;
-                }
-                labels.Add(tag.FriendlyName);
-            }
-
-            var commits = new List<GraphCommit>();
-            foreach (var c in repo.Commits.QueryBy(new CommitFilter
-            {
-                SortBy = CommitSortStrategies.Topological | CommitSortStrategies.Time,
-            }).Take(200))
-            {
-                commits.Add(new GraphCommit(
-                    Sha: c.Sha[..7],
-                    FullSha: c.Sha,
-                    MessageShort: c.MessageShort,
-                    AuthorName: c.Author.Name,
-                    When: c.Author.When,
-                    ParentShas: c.Parents.Select(p => p.Sha).ToList(),
-                    BranchLabels: branchTips.GetValueOrDefault(c.Sha) ?? [],
-                    TagLabels: tagTips.GetValueOrDefault(c.Sha) ?? []));
-            }
-
-            _cachedGraph = commits;
-        }
+        var headResult = _cli.RunAsync("rev-parse HEAD").GetAwaiter().GetResult();
+        _lastHeadSha = headResult.Success ? headResult.Stdout.Trim() : null;
     }
 
     private void HandleGetGraph(GetGraph msg)
     {
-        if (!_repoValid && _cachedGraph.Count == 0)
+        if (_cachedGraph.Count == 0)
         {
-            if (!Repository.IsValid(_repoPath))
+            var checkResult = _cli.RunAsync("rev-parse --git-dir").GetAwaiter().GetResult();
+            if (!checkResult.Success)
             {
-                Sender.Tell(new RepoNotFound(_repoPath));
+                Sender.Tell(new RepoNotFound(_cli.RepoPath));
                 return;
             }
 
@@ -144,134 +79,80 @@ public sealed partial class GitRepoActor : ReceiveActor
 
     private void HandleGetCommitDetail(GetCommitDetail msg)
     {
-        if (!TryOpenRepo(out var repo))
+        var showResult = _cli.RunAsync($"show --format=\"%H%x00%s%x00%B%x00%aN%x00%aE%x00%aI%x00%P%x00%D\" --no-patch {msg.Hash}")
+            .GetAwaiter().GetResult();
+
+        if (!showResult.Success)
         {
-            Sender.Tell(new RepoNotFound(_repoPath));
+            Sender.Tell(new RepoNotFound(_cli.RepoPath));
             return;
         }
 
-        using (repo)
+        var fields = showResult.Stdout.Trim().Split('\0');
+        if (fields.Length < 8)
         {
-            var commit = repo.Lookup<Commit>(msg.Hash);
-            if (commit is null)
-            {
-                Sender.Tell(new RepoNotFound(_repoPath));
-                return;
-            }
-
-            var branchLabels = repo.Branches
-                .Where(b => b.Tip?.Sha == commit.Sha)
-                .Select(b => b.FriendlyName)
-                .ToList();
-
-            var tagLabels = repo.Tags
-                .Where(t => (t.PeeledTarget as Commit ?? t.Target as Commit)?.Sha == commit.Sha)
-                .Select(t => t.FriendlyName)
-                .ToList();
-
-            var files = new List<FileDiff>();
-            var parent = commit.Parents.FirstOrDefault();
-            var diff = parent is not null
-                ? repo.Diff.Compare<Patch>(parent.Tree, commit.Tree)
-                : repo.Diff.Compare<Patch>(repo.ObjectDatabase.CreateTree(new TreeDefinition()), commit.Tree);
-
-            foreach (var change in diff)
-            {
-                var kind = change.Status switch
-                {
-                    LibChangeKind.Added => ChangeKind.Added,
-                    LibChangeKind.Deleted => ChangeKind.Deleted,
-                    LibChangeKind.Renamed => ChangeKind.Renamed,
-                    _ => ChangeKind.Modified,
-                };
-
-                var hunks = new List<DiffHunk>();
-                var currentLines = new List<DiffLine>();
-                var oldStart = 0;
-                var oldCount = 0;
-                var newStart = 0;
-                var newCount = 0;
-
-                foreach (var line in change.Patch.Split('\n'))
-                {
-                    if (line.StartsWith("@@"))
-                    {
-                        if (currentLines.Count > 0)
-                        {
-                            hunks.Add(new DiffHunk(oldStart, oldCount, newStart, newCount, currentLines));
-                            currentLines = [];
-                        }
-                        ParseHunkHeader(line, out oldStart, out oldCount, out newStart, out newCount);
-                    }
-                    else if (line.StartsWith('+') && !line.StartsWith("+++"))
-                    {
-                        currentLines.Add(new DiffLine(DiffLineKind.Added, line[1..]));
-                    }
-                    else if (line.StartsWith('-') && !line.StartsWith("---"))
-                    {
-                        currentLines.Add(new DiffLine(DiffLineKind.Removed, line[1..]));
-                    }
-                    else if (line.StartsWith(' '))
-                    {
-                        currentLines.Add(new DiffLine(DiffLineKind.Context, line[1..]));
-                    }
-                }
-
-                if (currentLines.Count > 0)
-                {
-                    hunks.Add(new DiffHunk(oldStart, oldCount, newStart, newCount, currentLines));
-                }
-
-                files.Add(new FileDiff(
-                    change.Path,
-                    kind,
-                    change.OldPath != change.Path ? change.OldPath : null,
-                    hunks));
-            }
-
-            Sender.Tell(new CommitDetailResponse(new CommitDetail(
-                Sha: commit.Sha[..7],
-                Message: commit.Message.TrimEnd(),
-                AuthorName: commit.Author.Name,
-                AuthorEmail: commit.Author.Email,
-                When: commit.Author.When,
-                ParentShas: commit.Parents.Select(p => p.Sha).ToList(),
-                BranchLabels: branchLabels,
-                TagLabels: tagLabels,
-                Files: files)));
-        }
-    }
-
-    private bool TryOpenRepo([NotNullWhen(true)] out Repository? repo)
-    {
-        try
-        {
-            repo = new Repository(_repoPath);
-            return true;
-        }
-        catch
-        {
-            repo = null;
-            _repoValid = false;
-            return false;
-        }
-    }
-
-    private static void ParseHunkHeader(string line, out int oldStart, out int oldCount, out int newStart, out int newCount)
-    {
-        oldStart = oldCount = newStart = newCount = 0;
-        var match = HunkHeaderRegex().Match(line);
-        if (!match.Success)
-        {
+            Sender.Tell(new RepoNotFound(_cli.RepoPath));
             return;
         }
 
-        oldStart = int.Parse(match.Groups[1].Value);
-        oldCount = match.Groups[2].Success ? int.Parse(match.Groups[2].Value) : 1;
-        newStart = int.Parse(match.Groups[3].Value);
-        newCount = match.Groups[4].Success ? int.Parse(match.Groups[4].Value) : 1;
+        var fullSha = fields[0];
+        var messageShort = fields[1];
+        var messageFull = fields[2].TrimEnd();
+        var authorName = fields[3];
+        var authorEmail = fields[4];
+        var when = DateTimeOffset.Parse(fields[5]);
+        var parentShas = string.IsNullOrEmpty(fields[6])
+            ? (IReadOnlyList<string>)[]
+            : fields[6].Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+        var refs = ParseRefs(fields[7]);
+
+        // Try parent diff first, fall back to root diff for initial commits
+        var diffResult = _cli.RunAsync($"diff {msg.Hash}~1 {msg.Hash} --unified=3")
+            .GetAwaiter().GetResult();
+
+        IReadOnlyList<Models.FileDiff> files = [];
+        if (diffResult.Success)
+        {
+            files = GitDiffParser.Parse(diffResult.Stdout);
+        }
+        else
+        {
+            var rootDiffResult = _cli.RunAsync($"diff --root {msg.Hash} --unified=3")
+                .GetAwaiter().GetResult();
+            if (rootDiffResult.Success)
+                files = GitDiffParser.Parse(rootDiffResult.Stdout);
+        }
+
+        Sender.Tell(new CommitDetailResponse(new Models.CommitDetail(
+            Sha: fullSha[..7],
+            Message: messageFull,
+            AuthorName: authorName,
+            AuthorEmail: authorEmail,
+            When: when,
+            ParentShas: parentShas,
+            BranchLabels: refs.Branches,
+            TagLabels: refs.Tags,
+            Files: files)));
     }
 
-    [GeneratedRegex(@"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")]
-    private static partial Regex HunkHeaderRegex();
+    private static (List<string> Branches, List<string> Tags) ParseRefs(string refString)
+    {
+        var branches = new List<string>();
+        var tags = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(refString))
+            return (branches, tags);
+
+        foreach (var r in refString.Split(',', StringSplitOptions.TrimEntries))
+        {
+            if (r.StartsWith("tag: "))
+                tags.Add(r[5..]);
+            else if (r.StartsWith("HEAD -> "))
+                branches.Add(r[8..]);
+            else if (r is not "HEAD")
+                branches.Add(r);
+        }
+
+        return (branches, tags);
+    }
 }
