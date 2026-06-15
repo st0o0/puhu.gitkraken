@@ -2,11 +2,14 @@
 # Build the Puhu.GitKraken plugin, deploy it into the local Puhu plugin folder,
 # and launch the Puhu host so you can test the plugin end-to-end.
 #
+# Unlike Puhu.Btop (single DLL), this plugin requires LibGit2Sharp + its native
+# git2 binary. We deploy to a subdirectory so the PluginLoadContext can resolve both.
+#
 # Usage:
 #   ./test-local.ps1                # build (Debug) + deploy + run host
 #   ./test-local.ps1 -Configuration Release
 #   ./test-local.ps1 -NoRun         # just build + deploy, don't launch the host
-#   ./test-local.ps1 -NoBuild       # skip build, just deploy existing dll + run
+#   ./test-local.ps1 -NoBuild       # skip build, just deploy existing output + run
 
 [CmdletBinding()]
 param(
@@ -20,24 +23,51 @@ $repoRoot = $PSScriptRoot
 
 $pluginProject = Join-Path $repoRoot "src/Puhu.GitKraken/Puhu.GitKraken.csproj"
 $hostProject   = Join-Path $repoRoot "lib/puhu/src/Puhu/Puhu.csproj"
-$pluginsDir    = Join-Path $HOME ".servus/plugins"
+$pluginsDir    = Join-Path $HOME ".servus/plugins/gitkraken"
+$publishDir    = Join-Path $repoRoot "src/Puhu.GitKraken/bin/$Configuration/net10.0/publish"
 
-# 1. Build the plugin
+# 1. Publish the plugin (includes all dependencies + native binaries)
 if (-not $NoBuild) {
-    Write-Host "==> Building Puhu.GitKraken ($Configuration)..." -ForegroundColor Cyan
-    dotnet build $pluginProject -c $Configuration
-    if ($LASTEXITCODE -ne 0) { throw "Plugin build failed." }
+    Write-Host "==> Publishing Puhu.GitKraken ($Configuration)..." -ForegroundColor Cyan
+    dotnet publish $pluginProject -c $Configuration
+    if ($LASTEXITCODE -ne 0) { throw "Plugin publish failed." }
 }
 
-# 2. Deploy only Puhu.GitKraken.dll — the host supplies all shared deps
-#    (Akka, R3, Termina, ...) via the Puhu.Plugin SDK it references.
-$builtDll = Join-Path $repoRoot "src/Puhu.GitKraken/bin/$Configuration/net10.0/Puhu.GitKraken.dll"
-if (-not (Test-Path $builtDll)) { throw "Built plugin not found at $builtDll" }
+if (-not (Test-Path $publishDir)) { throw "Publish output not found at $publishDir" }
 
+# 2. Deploy to subdirectory — only plugin-specific files (host supplies shared deps)
 if (-not (Test-Path $pluginsDir)) { New-Item -ItemType Directory -Force -Path $pluginsDir | Out-Null }
 
-Write-Host "==> Deploying Puhu.GitKraken.dll -> $pluginsDir" -ForegroundColor Cyan
-Copy-Item $builtDll (Join-Path $pluginsDir "Puhu.GitKraken.dll") -Force
-$builtPdb = [System.IO.Path]::ChangeExtension($builtDll, ".pdb")
-if (Test-Path $builtPdb) { Copy-Item $builtPdb (Join-Path $pluginsDir "Puhu.GitKraken.pdb") -Force }
+$rid = [System.Runtime.InteropServices.RuntimeInformation]::RuntimeIdentifier
+$filesToDeploy = @(
+    "Puhu.GitKraken.dll",
+    "Puhu.GitKraken.pdb",
+    "LibGit2Sharp.dll"
+)
 
+foreach ($file in $filesToDeploy) {
+    $src = Join-Path $publishDir $file
+    if (Test-Path $src) {
+        Copy-Item $src (Join-Path $pluginsDir $file) -Force
+        Write-Host "  -> $file" -ForegroundColor DarkGray
+    }
+}
+
+# 3. Deploy native git2 binary preserving runtimes/ structure
+$nativeSrc = Join-Path $publishDir "runtimes/$rid/native"
+if (Test-Path $nativeSrc) {
+    $nativeDst = Join-Path $pluginsDir "runtimes/$rid/native"
+    if (-not (Test-Path $nativeDst)) { New-Item -ItemType Directory -Force -Path $nativeDst | Out-Null }
+    foreach ($nativeFile in Get-ChildItem $nativeSrc -Filter "git2*") {
+        Copy-Item $nativeFile.FullName (Join-Path $nativeDst $nativeFile.Name) -Force
+        Write-Host "  -> runtimes/$rid/native/$($nativeFile.Name)" -ForegroundColor DarkGray
+    }
+}
+
+Write-Host "==> Deployed to $pluginsDir" -ForegroundColor Cyan
+
+# 4. Launch host
+if (-not $NoRun) {
+    Write-Host "==> Starting Puhu host..." -ForegroundColor Cyan
+    dotnet run --project $hostProject -c $Configuration
+}
