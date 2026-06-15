@@ -4,7 +4,7 @@ namespace Puhu.GitKraken.Services;
 
 public static class GitBranchParser
 {
-    public static IReadOnlyList<BranchInfo> Parse(string output)
+    public static IReadOnlyList<BranchInfo> Parse(string output, char fieldSeparator = '\0')
     {
         if (string.IsNullOrWhiteSpace(output))
             return [];
@@ -13,7 +13,7 @@ public static class GitBranchParser
 
         foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
-            var fields = line.Split('\0');
+            var fields = line.Split(fieldSeparator);
             if (fields.Length < 4)
                 continue;
 
