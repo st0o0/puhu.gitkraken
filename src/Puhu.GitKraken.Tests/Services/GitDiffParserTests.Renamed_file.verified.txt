@@ -1,0 +1,31 @@
+﻿[
+  {
+    Path: src/New.cs,
+    Kind: Renamed,
+    OldPath: src/Old.cs,
+    Hunks: [
+      {
+        OldStart: 1,
+        OldCount: 3,
+        NewStart: 1,
+        NewCount: 3,
+        Lines: [
+          {
+            Content: namespace Example;
+          },
+          {
+            Content: 
+          },
+          {
+            Kind: Removed,
+            Content: public class Old { }
+          },
+          {
+            Kind: Added,
+            Content: public class New { }
+          }
+        ]
+      }
+    ]
+  }
+]

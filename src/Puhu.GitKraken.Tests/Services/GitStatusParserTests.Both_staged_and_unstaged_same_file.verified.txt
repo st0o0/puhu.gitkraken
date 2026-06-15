@@ -1,0 +1,14 @@
+﻿{
+  Staged: [
+    {
+      Path: src/Both.cs,
+      Status: Modified
+    }
+  ],
+  Unstaged: [
+    {
+      Path: src/Both.cs,
+      Status: Modified
+    }
+  ]
+}

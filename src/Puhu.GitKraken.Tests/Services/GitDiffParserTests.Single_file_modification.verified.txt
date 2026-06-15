@@ -1,0 +1,29 @@
+﻿[
+  {
+    Path: src/File.cs,
+    Kind: Modified,
+    Hunks: [
+      {
+        OldStart: 10,
+        OldCount: 6,
+        NewStart: 10,
+        NewCount: 7,
+        Lines: [
+          {
+            Content:     var x = 1;
+          },
+          {
+            Content:     var y = 2;
+          },
+          {
+            Kind: Added,
+            Content:     var z = 3;
+          },
+          {
+            Content:     return x + y;
+          }
+        ]
+      }
+    ]
+  }
+]

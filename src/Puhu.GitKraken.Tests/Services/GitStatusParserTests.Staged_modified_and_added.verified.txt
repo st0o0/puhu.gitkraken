@@ -1,0 +1,11 @@
+﻿{
+  Staged: [
+    {
+      Path: src/Login.cs,
+      Status: Modified
+    },
+    {
+      Path: src/NewFile.cs
+    }
+  ]
+}

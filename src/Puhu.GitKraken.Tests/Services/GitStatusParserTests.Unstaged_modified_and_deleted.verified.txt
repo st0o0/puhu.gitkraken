@@ -1,0 +1,12 @@
+﻿{
+  Unstaged: [
+    {
+      Path: src/Login.cs,
+      Status: Modified
+    },
+    {
+      Path: src/OldFile.cs,
+      Status: Deleted
+    }
+  ]
+}

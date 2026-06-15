@@ -1,0 +1,10 @@
+﻿{
+  Untracked: [
+    {
+      Path: todo.txt
+    },
+    {
+      Path: docs/notes.md
+    }
+  ]
+}

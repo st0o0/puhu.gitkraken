@@ -1,0 +1,19 @@
+﻿{
+  Staged: [
+    {
+      Path: src/Staged.cs,
+      Status: Modified
+    }
+  ],
+  Unstaged: [
+    {
+      Path: src/Unstaged.cs,
+      Status: Modified
+    }
+  ],
+  Untracked: [
+    {
+      Path: newfile.txt
+    }
+  ]
+}

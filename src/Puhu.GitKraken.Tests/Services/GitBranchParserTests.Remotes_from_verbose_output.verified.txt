@@ -1,0 +1,12 @@
+﻿[
+  {
+    Name: origin,
+    FetchUrl: https://github.com/user/repo.git,
+    PushUrl: https://github.com/user/repo.git
+  },
+  {
+    Name: upstream,
+    FetchUrl: https://github.com/other/repo.git,
+    PushUrl: git@github.com:other/repo.git
+  }
+]

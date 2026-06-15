@@ -1,0 +1,9 @@
+﻿{
+  Staged: [
+    {
+      Path: src/New.cs,
+      Status: Renamed,
+      OldPath: src/Old.cs
+    }
+  ]
+}

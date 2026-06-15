@@ -1,0 +1,22 @@
+﻿[
+  {
+    Name: main,
+    IsHead: true,
+    IsRemote: false,
+    TrackingBranch: origin/main,
+    TipSha: abc1234
+  },
+  {
+    Name: feature,
+    IsHead: false,
+    IsRemote: false,
+    TipSha: def5678
+  },
+  {
+    Name: bugfix,
+    IsHead: false,
+    IsRemote: false,
+    TrackingBranch: origin/bugfix,
+    TipSha: ghi9012
+  }
+]

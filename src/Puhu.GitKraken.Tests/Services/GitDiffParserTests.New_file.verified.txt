@@ -1,0 +1,25 @@
+﻿[
+  {
+    Path: src/New.cs,
+    Hunks: [
+      {
+        NewStart: 1,
+        NewCount: 3,
+        Lines: [
+          {
+            Kind: Added,
+            Content: namespace Example;
+          },
+          {
+            Kind: Added,
+            Content: 
+          },
+          {
+            Kind: Added,
+            Content: public class New { }
+          }
+        ]
+      }
+    ]
+  }
+]

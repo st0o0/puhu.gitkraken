@@ -1,0 +1,41 @@
+﻿[
+  {
+    Path: src/A.cs,
+    Kind: Modified,
+    Hunks: [
+      {
+        OldStart: 1,
+        OldCount: 3,
+        NewStart: 1,
+        NewCount: 4,
+        Lines: [
+          {
+            Content: line1
+          },
+          {
+            Kind: Added,
+            Content: line2
+          },
+          {
+            Content: line3
+          }
+        ]
+      }
+    ]
+  },
+  {
+    Path: src/B.cs,
+    Hunks: [
+      {
+        NewStart: 1,
+        NewCount: 1,
+        Lines: [
+          {
+            Kind: Added,
+            Content: content
+          }
+        ]
+      }
+    ]
+  }
+]

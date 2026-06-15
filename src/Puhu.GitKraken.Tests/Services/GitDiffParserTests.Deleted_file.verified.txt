@@ -1,0 +1,26 @@
+﻿[
+  {
+    Path: src/Old.cs,
+    Kind: Deleted,
+    Hunks: [
+      {
+        OldStart: 1,
+        OldCount: 3,
+        Lines: [
+          {
+            Kind: Removed,
+            Content: namespace Example;
+          },
+          {
+            Kind: Removed,
+            Content: 
+          },
+          {
+            Kind: Removed,
+            Content: public class Old { }
+          }
+        ]
+      }
+    ]
+  }
+]
