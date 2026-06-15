@@ -1,0 +1,17 @@
+﻿[
+  {
+    Sha: aaa1234,
+    FullSha: aaa1234567890abcdef1234567890abcdef123456,
+    MessageShort: Latest,
+    AuthorName: Author,
+    When: DateTimeOffset_1,
+    BranchLabels: [
+      main,
+      origin/main
+    ],
+    TagLabels: [
+      v2.0,
+      release
+    ]
+  }
+]

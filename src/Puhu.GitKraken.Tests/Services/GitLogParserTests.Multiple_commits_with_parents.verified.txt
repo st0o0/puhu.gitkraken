@@ -1,0 +1,35 @@
+﻿[
+  {
+    Sha: aaa1234,
+    FullSha: aaa1234567890abcdef1234567890abcdef123456,
+    MessageShort: Third,
+    AuthorName: Author,
+    When: DateTimeOffset_1,
+    ParentShas: [
+      bbb1234567890abcdef1234567890abcdef123456
+    ],
+    BranchLabels: [
+      main
+    ]
+  },
+  {
+    Sha: bbb1234,
+    FullSha: bbb1234567890abcdef1234567890abcdef123456,
+    MessageShort: Second,
+    AuthorName: Author,
+    When: DateTimeOffset_2,
+    ParentShas: [
+      ccc1234567890abcdef1234567890abcdef123456
+    ]
+  },
+  {
+    Sha: ccc1234,
+    FullSha: ccc1234567890abcdef1234567890abcdef123456,
+    MessageShort: First,
+    AuthorName: Author,
+    When: DateTimeOffset_3,
+    TagLabels: [
+      v1.0
+    ]
+  }
+]

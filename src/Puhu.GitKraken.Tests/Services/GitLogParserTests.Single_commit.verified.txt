@@ -1,0 +1,12 @@
+﻿[
+  {
+    Sha: abc1234,
+    FullSha: abc1234567890abcdef1234567890abcdef123456,
+    MessageShort: Initial commit,
+    AuthorName: Test Author,
+    When: DateTimeOffset_1,
+    BranchLabels: [
+      main
+    ]
+  }
+]
