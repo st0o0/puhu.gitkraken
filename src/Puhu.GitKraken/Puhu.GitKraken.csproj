@@ -3,9 +3,6 @@
     <ProjectReference Include="..\..\lib\puhu\src\Puhu.Plugin\Puhu.Plugin.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="LibGit2Sharp" />
-  </ItemGroup>
-  <ItemGroup>
     <InternalsVisibleTo Include="Puhu.GitKraken.Tests" />
   </ItemGroup>
 </Project>
