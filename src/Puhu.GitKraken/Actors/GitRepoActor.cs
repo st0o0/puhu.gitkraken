@@ -2,7 +2,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using Akka.Actor;
 using LibGit2Sharp;
+using Puhu.GitKraken.Models;
 using Puhu.Plugin;
+using ChangeKind = Puhu.GitKraken.Models.ChangeKind;
 using LibChangeKind = LibGit2Sharp.ChangeKind;
 
 namespace Puhu.GitKraken.Actors;
@@ -21,21 +23,25 @@ public sealed partial class GitRepoActor : ReceiveActor
 
         Receive<Tick>(_ => HandleTick());
         Receive<RefreshRequest>(_ => Reload());
-        Receive<GetGraph>(msg => HandleGetGraph(msg));
-        Receive<GetCommitDetail>(msg => HandleGetCommitDetail(msg));
+        Receive<GetGraph>(HandleGetGraph);
+        Receive<GetCommitDetail>(HandleGetCommitDetail);
     }
 
     private void HandleTick()
     {
         if (!_repoValid && !Repository.IsValid(_repoPath))
+        {
             return;
+        }
 
         try
         {
             using var repo = new Repository(_repoPath);
             var headSha = repo.Head?.Tip?.Sha;
             if (headSha == _lastHeadSha)
+            {
                 return;
+            }
         }
         catch
         {
@@ -65,7 +71,11 @@ public sealed partial class GitRepoActor : ReceiveActor
             var branchTips = new Dictionary<string, List<string>>();
             foreach (var branch in repo.Branches)
             {
-                if (branch.Tip is null) continue;
+                if (branch.Tip is null)
+                {
+                    continue;
+                }
+
                 if (!branchTips.TryGetValue(branch.Tip.Sha, out var labels))
                 {
                     labels = [];
@@ -77,8 +87,12 @@ public sealed partial class GitRepoActor : ReceiveActor
             var tagTips = new Dictionary<string, List<string>>();
             foreach (var tag in repo.Tags)
             {
-                var target = tag.PeeledTarget as LibGit2Sharp.Commit ?? tag.Target as LibGit2Sharp.Commit;
-                if (target is null) continue;
+                var target = tag.PeeledTarget as Commit ?? tag.Target as Commit;
+                if (target is null)
+                {
+                    continue;
+                }
+
                 if (!tagTips.TryGetValue(target.Sha, out var labels))
                 {
                     labels = [];
@@ -138,7 +152,7 @@ public sealed partial class GitRepoActor : ReceiveActor
 
         using (repo)
         {
-            var commit = repo.Lookup<LibGit2Sharp.Commit>(msg.Hash);
+            var commit = repo.Lookup<Commit>(msg.Hash);
             if (commit is null)
             {
                 Sender.Tell(new RepoNotFound(_repoPath));
@@ -151,7 +165,7 @@ public sealed partial class GitRepoActor : ReceiveActor
                 .ToList();
 
             var tagLabels = repo.Tags
-                .Where(t => (t.PeeledTarget as LibGit2Sharp.Commit ?? t.Target as LibGit2Sharp.Commit)?.Sha == commit.Sha)
+                .Where(t => (t.PeeledTarget as Commit ?? t.Target as Commit)?.Sha == commit.Sha)
                 .Select(t => t.FriendlyName)
                 .ToList();
 
@@ -204,7 +218,9 @@ public sealed partial class GitRepoActor : ReceiveActor
                 }
 
                 if (currentLines.Count > 0)
+                {
                     hunks.Add(new DiffHunk(oldStart, oldCount, newStart, newCount, currentLines));
+                }
 
                 files.Add(new FileDiff(
                     change.Path,
@@ -245,7 +261,11 @@ public sealed partial class GitRepoActor : ReceiveActor
     {
         oldStart = oldCount = newStart = newCount = 0;
         var match = HunkHeaderRegex().Match(line);
-        if (!match.Success) return;
+        if (!match.Success)
+        {
+            return;
+        }
+
         oldStart = int.Parse(match.Groups[1].Value);
         oldCount = match.Groups[2].Success ? int.Parse(match.Groups[2].Value) : 1;
         newStart = int.Parse(match.Groups[3].Value);

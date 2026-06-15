@@ -1,16 +1,19 @@
+using Puhu.GitKraken.Models;
+
 namespace Puhu.GitKraken.Services;
 
 public sealed record RenderedGraphRow(
     string GraphPrefix,
-    GraphCommit Commit,
-    int ActiveColumns);
+    GraphCommit Commit);
 
 public sealed class GraphRenderer
 {
     public IReadOnlyList<RenderedGraphRow> Render(IReadOnlyList<GraphCommit> commits)
     {
         if (commits.Count == 0)
+        {
             return [];
+        }
 
         var rows = new List<RenderedGraphRow>(commits.Count);
         var columns = new List<string?>();
@@ -19,7 +22,7 @@ public sealed class GraphRenderer
         {
             var col = FindOrAddColumn(columns, commit.FullSha);
             var prefix = BuildPrefix(columns, col);
-            rows.Add(new RenderedGraphRow(prefix, commit, CountActive(columns)));
+            rows.Add(new RenderedGraphRow(prefix, commit));
 
             AdvanceColumns(columns, col, commit);
         }
@@ -32,7 +35,9 @@ public sealed class GraphRenderer
         for (var i = 0; i < columns.Count; i++)
         {
             if (columns[i] == sha)
+            {
                 return i;
+            }
         }
 
         var slot = columns.IndexOf(null);
@@ -55,18 +60,17 @@ public sealed class GraphRenderer
             if (i == commitCol)
             {
                 chars[i * 2] = '●';
-                chars[i * 2 + 1] = ' ';
             }
             else if (columns[i] is not null)
             {
                 chars[i * 2] = '│';
-                chars[i * 2 + 1] = ' ';
             }
             else
             {
                 chars[i * 2] = ' ';
-                chars[i * 2 + 1] = ' ';
             }
+
+            chars[i * 2 + 1] = ' ';
         }
 
         return new string(chars);
@@ -99,14 +103,17 @@ public sealed class GraphRenderer
                     }
 
                     if (slot >= 0)
+                    {
                         columns[slot] = parentSha;
+                    }
                     else
+                    {
                         columns.Add(parentSha);
+                    }
                 }
             }
         }
     }
 
-    private static int CountActive(List<string?> columns) =>
-        columns.Count(c => c is not null);
+    private static int CountActive(List<string?> columns) => columns.Count(c => c is not null);
 }

@@ -1,3 +1,4 @@
+using Puhu.GitKraken.Models;
 using Puhu.GitKraken.Services;
 
 namespace Puhu.GitKraken.Tests.Services;

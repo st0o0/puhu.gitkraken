@@ -1,4 +1,4 @@
-namespace Puhu.GitKraken;
+namespace Puhu.GitKraken.Models;
 
 public sealed record GraphCommit(
     string Sha,

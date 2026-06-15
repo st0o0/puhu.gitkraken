@@ -1,3 +1,5 @@
+using Puhu.GitKraken.Models;
+
 namespace Puhu.GitKraken.Actors;
 
 public sealed record RefreshRequest;

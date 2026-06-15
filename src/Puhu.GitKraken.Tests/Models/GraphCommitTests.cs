@@ -1,3 +1,5 @@
+using Puhu.GitKraken.Models;
+
 namespace Puhu.GitKraken.Tests.Models;
 
 public sealed class GraphCommitTests

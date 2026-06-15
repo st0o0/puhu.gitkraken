@@ -1,13 +1,14 @@
 using Akka.Actor;
 using Akka.Hosting;
 using Puhu.GitKraken.Actors;
+using Puhu.GitKraken.Models;
 using R3;
 using Termina.Reactive;
 using Termina.Routing;
 
 namespace Puhu.GitKraken.Pages;
 
-public sealed partial class CommitDetailViewModel : ReactiveViewModel
+public sealed class CommitDetailViewModel : ReactiveViewModel
 {
     [FromRoute(Name = "hash")] private string _hash = "";
 
@@ -59,7 +60,10 @@ public sealed partial class CommitDetailViewModel : ReactiveViewModel
     {
         var set = new HashSet<int>(ExpandedFiles.Value);
         if (!set.Remove(index))
+        {
             set.Add(index);
+        }
+
         ExpandedFiles.Value = set;
     }
 

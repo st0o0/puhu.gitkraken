@@ -24,19 +24,19 @@ public sealed class GraphPage : ReactivePage<GraphViewModel>, IKeyHintProvider
     }
 
     public string[] GetKeyHints() =>
-        ["Esc:Quit", "Tab:Switch", "Enter:Details", "R:Refresh", "+/-:Speed", "P:Pause"];
+        ["Enter:Details", "R:Refresh"];
 
     public override ILayoutNode BuildLayout()
     {
         var theme = _themeService.Current;
 
         var header = Layouts.Horizontal(
-            new TextNode(" Branch: ")
-                .WithForeground(theme.TextDim),
-            new TextNode(ViewModel.CurrentBranch.Value)
-                .WithForeground(theme.Accent),
-            new TextNode($"  Commits: {ViewModel.CommitCount.Value}")
-                .WithForeground(theme.TextDim))
+                new TextNode(" Branch: ")
+                    .WithForeground(theme.TextDim),
+                new TextNode(ViewModel.CurrentBranch.Value)
+                    .WithForeground(theme.Accent),
+                new TextNode($"  Commits: {ViewModel.CommitCount.Value}")
+                    .WithForeground(theme.TextDim))
             .Height(1);
 
         if (ViewModel.StatusMessage.Value is { Length: > 0 } msg)
@@ -77,7 +77,9 @@ public sealed class GraphPage : ReactivePage<GraphViewModel>, IKeyHintProvider
         {
             var hash = _list?.HighlightedItem?.Value.Commit.FullSha;
             if (hash is not null)
+            {
                 Navigate($"/git/commit/{hash}");
+            }
         });
 
         ViewModel.Rows.Subscribe(_ => InvalidateLayout()).DisposeWith(Subscriptions);

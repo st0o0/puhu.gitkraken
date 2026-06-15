@@ -1,3 +1,4 @@
+using Puhu.GitKraken.Models;
 using Puhu.Plugin;
 using R3;
 using Termina.Layout;
@@ -30,20 +31,25 @@ public sealed class CommitDetailPage : ReactivePage<CommitDetailViewModel>, IKey
                 .Fill();
         }
 
-        var lines = new List<ILayoutNode>();
-
-        // Commit header
-        lines.Add(new TextNode($" Commit {detail.Sha}").WithForeground(theme.Accent).Height(1));
-        lines.Add(new TextNode($" {detail.Message}").WithForeground(theme.Foreground).Height(1));
-        lines.Add(Layouts.Empty().Height(1));
-        lines.Add(new TextNode($" Author:  {detail.AuthorName} <{detail.AuthorEmail}>").WithForeground(theme.TextDim).Height(1));
-        lines.Add(new TextNode($" Date:    {detail.When:yyyy-MM-dd HH:mm:ss}").WithForeground(theme.TextDim).Height(1));
+        var lines = new List<ILayoutNode>
+        {
+            // Commit header
+            new TextNode($" Commit {detail.Sha}").WithForeground(theme.Accent).Height(1),
+            new TextNode($" {detail.Message}").WithForeground(theme.Foreground).Height(1),
+            Layouts.Empty().Height(1),
+            new TextNode($" Author:  {detail.AuthorName} <{detail.AuthorEmail}>").WithForeground(theme.TextDim).Height(1),
+            new TextNode($" Date:    {detail.When:yyyy-MM-dd HH:mm:ss}").WithForeground(theme.TextDim).Height(1)
+        };
 
         if (detail.ParentShas.Count > 0)
+        {
             lines.Add(new TextNode($" Parents: {string.Join(", ", detail.ParentShas.Select(s => s[..Math.Min(7, s.Length)]))}").WithForeground(theme.TextDim).Height(1));
+        }
 
         if (detail.BranchLabels.Count > 0)
+        {
             lines.Add(new TextNode($" Refs:    {string.Join(", ", detail.BranchLabels)}").WithForeground(theme.Accent).Height(1));
+        }
 
         lines.Add(Layouts.Empty().Height(1));
 
@@ -124,7 +130,11 @@ public sealed class CommitDetailPage : ReactivePage<CommitDetailViewModel>, IKey
         KeyBindings.Register(ConsoleKey.Tab, () =>
         {
             var detail = ViewModel.Detail.Value;
-            if (detail is null || detail.Files.Count == 0) return;
+            if (detail is null || detail.Files.Count == 0)
+            {
+                return;
+            }
+
             var next = (ViewModel.SelectedFileIndex.Value + 1) % detail.Files.Count;
             ViewModel.SelectedFileIndex.Value = next;
             InvalidateLayout();
@@ -134,7 +144,11 @@ public sealed class CommitDetailPage : ReactivePage<CommitDetailViewModel>, IKey
         KeyBindings.Register(ConsoleKey.Tab, ConsoleModifiers.Shift, () =>
         {
             var detail = ViewModel.Detail.Value;
-            if (detail is null || detail.Files.Count == 0) return;
+            if (detail is null || detail.Files.Count == 0)
+            {
+                return;
+            }
+
             var prev = (ViewModel.SelectedFileIndex.Value - 1 + detail.Files.Count) % detail.Files.Count;
             ViewModel.SelectedFileIndex.Value = prev;
             InvalidateLayout();
