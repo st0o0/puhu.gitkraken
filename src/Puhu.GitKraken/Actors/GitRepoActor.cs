@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 using Akka.Actor;
 using LibGit2Sharp;
 using Puhu.Plugin;
@@ -6,7 +7,7 @@ using LibChangeKind = LibGit2Sharp.ChangeKind;
 
 namespace Puhu.GitKraken.Actors;
 
-public sealed class GitRepoActor : ReceiveActor
+public sealed partial class GitRepoActor : ReceiveActor
 {
     private readonly string _repoPath;
     private List<GraphCommit> _cachedGraph = [];
@@ -26,7 +27,7 @@ public sealed class GitRepoActor : ReceiveActor
 
     private void HandleTick()
     {
-        if (!_repoValid && !TryOpenRepo(out _))
+        if (!_repoValid && !Repository.IsValid(_repoPath))
             return;
 
         try
@@ -109,10 +110,15 @@ public sealed class GitRepoActor : ReceiveActor
 
     private void HandleGetGraph(GetGraph msg)
     {
-        if (!_repoValid && _cachedGraph.Count == 0 && !TryOpenRepo(out _))
+        if (!_repoValid && _cachedGraph.Count == 0)
         {
-            Sender.Tell(new RepoNotFound(_repoPath));
-            return;
+            if (!Repository.IsValid(_repoPath))
+            {
+                Sender.Tell(new RepoNotFound(_repoPath));
+                return;
+            }
+
+            Reload();
         }
 
         var result = msg.MaxCount < _cachedGraph.Count
@@ -238,12 +244,14 @@ public sealed class GitRepoActor : ReceiveActor
     private static void ParseHunkHeader(string line, out int oldStart, out int oldCount, out int newStart, out int newCount)
     {
         oldStart = oldCount = newStart = newCount = 0;
-        var match = System.Text.RegularExpressions.Regex.Match(
-            line, @"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@");
+        var match = HunkHeaderRegex().Match(line);
         if (!match.Success) return;
         oldStart = int.Parse(match.Groups[1].Value);
         oldCount = match.Groups[2].Success ? int.Parse(match.Groups[2].Value) : 1;
         newStart = int.Parse(match.Groups[3].Value);
         newCount = match.Groups[4].Success ? int.Parse(match.Groups[4].Value) : 1;
     }
+
+    [GeneratedRegex(@"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")]
+    private static partial Regex HunkHeaderRegex();
 }
