@@ -1,53 +1,33 @@
-# puhu.plugin.template
+# puhu.gitkraken
 
-Template for creating [Puhu](https://github.com/st0o0/puhu) plugins. Click **"Use this template"** on GitHub to create your own plugin repo.
+A [Puhu](https://github.com/st0o0/puhu) plugin for git repository visualization — commit graph, branch labels, and commit detail views.
 
-## Getting Started
+## Features
 
-1. Click "Use this template" and name your repo (e.g. `puhu.plugin.awesome`)
-2. Clone your new repo locally
-3. Rename everything from `MyPlugin` to your plugin name:
-
-| What | Replace |
-|------|---------|
-| Folder/file names | `MyPlugin` → `Awesome` |
-| Project folder | `src/Puhu.Plugin.MyPlugin/` → `src/Puhu.Plugin.Awesome/` |
-| Namespaces | `Puhu.Plugin.MyPlugin` → `Puhu.Plugin.Awesome` |
-| Plugin name in `MyPlugin.cs` | `Name => "Awesome"` |
-| Tab label and route | `"MyPlugin", "/myplugin"` → `"Awesome", "/awesome"` |
-| `puhu-manifest.json` | Update id, name, description, author, repository, asset |
-| `csproj` filename | `Puhu.Plugin.MyPlugin.csproj` → `Puhu.Plugin.Awesome.csproj` |
-| Solution filename | `src/Puhu.Plugin.MyPlugin.slnx` → `src/Puhu.Plugin.Awesome.slnx` |
-
-4. Set the `Puhu.Plugin` package version in `src/Directory.Packages.props` once it's published on NuGet
-
-## Project Structure
-
-This mirrors the [puhu](https://github.com/st0o0/puhu) repo layout — each project lives in its own folder under `src/`, with shared build configuration alongside it.
-
-```
-Directory.Build.targets             # Shared MSBuild targets (repo root)
-src/
-  Directory.Build.props             # Shared project properties (TFM, nullable, ...)
-  Directory.Packages.props          # Central package versions (CPM)
-  global.json                       # Pinned .NET SDK
-  Puhu.Plugin.MyPlugin.slnx         # Solution
-  Puhu.Plugin.MyPlugin/
-    Puhu.Plugin.MyPlugin.csproj     # Project file with Puhu.Plugin NuGet reference
-    MyPlugin.cs                     # IPuhuPlugin — entry point, registers tab + route
-    Pages/
-      MyPage.cs                     # ReactivePage with IKeyHintProvider
-      MyViewModel.cs                # ReactiveViewModel with reactive state
-puhu-manifest.json                  # Plugin manifest for the Puhu registry
-```
+- Interactive commit graph with branch/tag labels
+- Commit detail view with file diffs
+- Auto-refresh every 30 seconds via tick system
+- Powered by LibGit2Sharp
 
 ## Building
 
 ```bash
-dotnet build src/Puhu.Plugin.MyPlugin.slnx
+dotnet build src/Puhu.GitKraken.slnx
 ```
 
-## Publishing to the Registry
+## Publishing
 
-1. Create a GitHub Release with your built DLL as an asset
-2. Open a PR to [puhu.registry](https://github.com/st0o0/puhu.registry) adding your plugin entry to `index.json`
+This plugin uses **bundle delivery** because it includes LibGit2Sharp and native binaries.
+
+1. Build in Release mode: `dotnet publish src/Puhu.GitKraken/Puhu.GitKraken.csproj -c Release`
+2. ZIP the publish output as `Puhu.GitKraken.zip`
+3. Create a GitHub Release with the ZIP as asset
+4. The manifest declares `"bundle": true` so Puhu extracts the ZIP on install
+
+## Development
+
+This repo uses a git submodule for the main puhu framework:
+
+```bash
+git submodule update --init --recursive
+```
